@@ -1,4 +1,4 @@
-name: Filter RU keys
+name: Filter keys by region
 
 on:
   schedule:
@@ -16,16 +16,29 @@ jobs:
           curl -s "https://raw.githubusercontent.com/zieng2/wl/main/vless_lite.txt" | \
           python3 -c "
           import sys, urllib.parse
+          from collections import defaultdict
+
+          groups = defaultdict(list)
+
           for line in sys.stdin:
               line = line.strip()
-              if not line:
+              if not line or '#' not in line:
                   continue
-              if '#' in line:
-                  fragment = urllib.parse.unquote(line.split('#', 1)[1])
-                  if '\U0001f1f7\U0001f1fa' in fragment:
-                      print(line)
+              fragment = urllib.parse.unquote(line.split('#', 1)[1])
+              parts = fragment.split('—')
+              group_key = parts[0].strip() if len(parts) > 1 else fragment.strip()
+              groups[group_key].append(line)
+
+          total = 0
+          for group_key, keys in groups.items():
+              for key in keys[:5]:
+                  print(key)
+                  total += 1
+
+          import sys
+          print(f'Total: {total} keys from {len(groups)} regions', file=sys.stderr)
           " > filtered.txt
-          echo "Filtered: $(wc -l < filtered.txt) keys"
+          echo "Done: $(wc -l < filtered.txt) lines"
 
       - name: Commit if changed
         run: |
