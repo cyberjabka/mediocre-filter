@@ -18,7 +18,11 @@ jobs:
           import sys, urllib.parse
           from collections import defaultdict
 
-          groups = defaultdict(list)
+          RU_PROVIDERS = ['VK', 'Yandex', 'Timeweb']
+          RU_PER_PROVIDER = 2
+
+          by_country = defaultdict(list)
+          ru_by_provider = defaultdict(list)
 
           for line in sys.stdin:
               line = line.strip()
@@ -26,17 +30,30 @@ jobs:
                   continue
               fragment = urllib.parse.unquote(line.split('#', 1)[1])
               parts = fragment.split('—')
-              group_key = parts[0].strip() if len(parts) > 1 else fragment.strip()
-              groups[group_key].append(line)
+              if len(parts) < 2:
+                  continue
+              group = parts[0].strip()  # например '🇷🇺 VK' или '🇩🇪 Germany'
+              words = group.split()
+              flag = words[0]           # эмодзи флага
+              provider = ' '.join(words[1:]) if len(words) > 1 else ''
 
-          total = 0
-          for group_key, keys in groups.items():
+              if flag == '🇷🇺':
+                  for p in RU_PROVIDERS:
+                      if p.lower() in provider.lower():
+                          ru_by_provider[p].append(line)
+                          break
+              else:
+                  by_country[flag].append(line)
+
+          # RU: по 2 от каждого провайдера
+          for p in RU_PROVIDERS:
+              for key in ru_by_provider[p][:RU_PER_PROVIDER]:
+                  print(key)
+
+          # Остальные страны: по 5
+          for flag, keys in by_country.items():
               for key in keys[:5]:
                   print(key)
-                  total += 1
-
-          import sys
-          print(f'Total: {total} keys from {len(groups)} regions', file=sys.stderr)
           " > filtered.txt
           echo "Done: $(wc -l < filtered.txt) lines"
 
